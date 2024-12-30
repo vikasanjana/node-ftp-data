@@ -4,7 +4,7 @@
   "description": "A simple FTP server using Node.js",
   "main": "app.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node app.js"
   },
   "dependencies": {
     "basic-ftp": "^5.0.5",
