@@ -1,9 +1,11 @@
 const express = require("express");
+const fs = require("fs");
+const csv = require("csv-parser");
 const { Client } = require("basic-ftp");
 const app = express();
 app.use(express.json());
 
-app.get('/', (req, res) => {  res.send('Hello World!') });
+app.get('/', (req, res) => { res.send('Hello World!') });
 
 app.post("/ftp/download", async (req, res) => {
     const { host, user, password, filePath, port, secure } = req.body;
@@ -14,54 +16,60 @@ app.post("/ftp/download", async (req, res) => {
             error: "Missing required parameters: 'host', 'user', 'password', 'filePath'."
         });
     }
-
     const client = new Client();
-    client.ftp.verbose = true; // Enable detailed logging for debugging
-
+    client.ftp.verbose = true; // Enables detailed logging
     try {
         await client.access({
-            host,
-            user,
-            password,
-            secure: secure || false, // Default to false if not provided
-            port: port || 21, // Default FTP port is 21
+            host: host, // Same host as in FileZilla
+            user: user,          // Your username
+            password: password,       // Your password
+            secure: secure ? "implicit" : "explicit",            // Use implicit FTP over TLS
             secureOptions: {
-                rejectUnauthorized: false
-            }
+                rejectUnauthorized: false  // Ignore self-signed certificates
+            },
+            port: port
         });
 
-        console.log("Connected to the FTP server!");
 
-        const files = await client.list();
-        const fileExists = files.some(file => file.name === filePath);
+        await client.downloadTo('temfile.csv', filePath);
 
-        if (!fileExists) {
-            return res.status(404).json({
-                error: `File '${filePath}' not found on the server.`
-            });
-        }
+        const jsonData = await convertCsvToJson('temfile.csv');
+        res.status(200).json(jsonData);
 
-        const writable = [];
-        await client.downloadTo(Buffer.concat(writable), filePath);
-
-        const fileData = Buffer.concat(writable).toString();
-
-        return res.status(200).json({
-            message: "File downloaded successfully.",
-            data: fileData
-        });
     } catch (err) {
         console.error("FTP Connection Error:", err);
-        return res.status(500).json({
-            error: "An error occurred while connecting to the FTP server.",
-            details: err.message
-        });
     } finally {
         client.close();
     }
 });
 
-const PORT = process.env.PORT || 80;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
 });
+
+
+// Function to convert CSV to JSON
+const convertCsvToJson = async (filePath = 'temfile.csv') => {
+    return new Promise((resolve, reject) => {
+        const jsonData = [];
+
+        // Check if the file exists
+        if (!fs.existsSync(filePath)) {
+            return reject(new Error("File not found."));
+        }
+
+        // Read and parse the CSV file
+        fs.createReadStream(filePath)
+            .pipe(csv())
+            .on("data", (row) => {
+                jsonData.push(row);
+            })
+            .on("end", () => {
+                resolve(jsonData);
+            })
+            .on("error", (err) => {
+                reject(err);
+            });
+    });
+};
