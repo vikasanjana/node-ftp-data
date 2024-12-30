@@ -3,6 +3,8 @@ const { Client } = require("basic-ftp");
 const app = express();
 app.use(express.json());
 
+app.get('/', (req, res) => {  res.send('Hello World!') });
+
 app.post("/ftp/download", async (req, res) => {
     const { host, user, password, filePath, port, secure } = req.body;
 
