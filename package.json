@@ -1,4 +1,8 @@
 {
+  "name": "my-ndoe-ftp-server",
+  "version": "1.0.0",
+  "description": "A simple FTP server using Node.js",
+  "main": "app.js",
   "scripts": {
     "start": "node index.js"
   },
